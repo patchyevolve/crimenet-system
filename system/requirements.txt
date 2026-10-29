@@ -1,0 +1,12 @@
+openpyxl>=3.1.0
+pdfplumber>=0.10.0
+python-docx>=1.0.0
+httpx>=0.24.0
+# Pipeline — geospatial H3 hex indices (src/analytics/geospatial.py)
+h3>=3.7.6
+# Database
+prisma>=0.11.0
+asyncpg>=0.29.0
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0

@@ -1,0 +1,50 @@
+# Runtime dependencies for the CrimeNet API container.
+#
+# This list is derived from a static scan of the imports actually reachable
+# from `api/`, `run.py`, `src/` and `loader/` — not from the developer's
+# whole environment. Two groups:
+#
+#   * required  — imported at module scope, so the service will not start
+#                 without them
+#   * optional  — imported inside a function body; the pipeline degrades
+#                 gracefully when they are missing. They are pinned here
+#                 anyway so the container behaves the same way the verified
+#                 host run did.
+#
+# `prisma` and `asyncpg` are deliberately absent: only `migrate.py` imports
+# `src.db`, and nothing on the `api -> run.py -> src.pipeline` path does.
+# The pipeline writes to Postgres through raw `psycopg2` inside a try/except.
+
+# --- API service -----------------------------------------------------------
+fastapi==0.136.1
+uvicorn==0.46.0
+pydantic==2.13.3
+python-multipart==0.0.29
+httpx==0.28.1
+
+# --- required pipeline dependencies ---------------------------------------
+requests==2.33.1
+psycopg2-binary==2.9.12
+python-dotenv==1.2.2
+networkx==3.6.1
+numpy==2.4.4
+
+# --- optional pipeline dependencies (lazy imports) -------------------------
+geopy==2.5.0
+h3>=3.7.6
+openpyxl==3.1.5
+pdfplumber==0.11.10
+python-docx==1.2.0
+pymupdf==1.28.2
+pillow==12.3.0
+pytesseract==0.3.13
+spacy==3.8.16
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# --- face recognition (lazy; doc 08 — stages 1.5/2/2.5) ----------------------
+# insightface declares a dependency on opencv-python (Qt/X11 build), which
+# cannot import in a slim container; the Dockerfile swaps in the headless
+# wheel right after this install.
+insightface==2.0
+onnxruntime==1.30.0
+opencv-python-headless==5.0.0.93

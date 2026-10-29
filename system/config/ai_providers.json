@@ -1,0 +1,94 @@
+{
+  "providers": [
+    {
+      "name": "ollama",
+      "api_url": "http://localhost:11434",
+      "models": {
+        "fast": "llama3.1:8b",
+        "balanced": "llama3.1:8b",
+        "strong": "llama3.1:70b"
+      },
+      "rate_limit_rpm": 999,
+      "rate_limit_rpd": 9999
+    },
+    {
+      "name": "groq",
+      "api_url": "https://api.groq.com/openai/v1",
+      "models": {
+        "fast": "openai/gpt-oss-20b",
+        "balanced": "openai/gpt-oss-20b",
+        "strong": "openai/gpt-oss-20b"
+      },
+      "rate_limit_rpm": 30,
+      "rate_limit_rpd": 14400,
+      "model_limits": {
+        "openai/gpt-oss-20b": 8192,
+        "openai/gpt-oss-120b": 8192
+      }
+    },
+    {
+      "name": "siliconflow",
+      "api_url": "https://api.siliconflow.cn/v1",
+      "models": {
+        "fast": "Qwen/Qwen3-8B",
+        "balanced": "Qwen/Qwen2.5-72B-Instruct",
+        "strong": "Qwen/Qwen2.5-72B-Instruct"
+      },
+      "rate_limit_rpm": 60,
+      "rate_limit_rpd": 10000
+    },
+    {
+      "name": "openrouter",
+      "api_url": "https://openrouter.ai/api/v1",
+      "models": {
+        "fast": "meta-llama/llama-3.1-8b-instruct:free",
+        "balanced": "qwen/qwen-2.5-72b-instruct:free",
+        "strong": "deepseek/deepseek-r1:free"
+      },
+      "rate_limit_rpm": 20,
+      "rate_limit_rpd": 200
+    },
+    {
+      "name": "google",
+      "api_url": "https://generativelanguage.googleapis.com/v1beta",
+      "models": {
+        "fast": "gemini-2.0-flash",
+        "balanced": "gemini-2.0-flash",
+        "strong": "gemini-2.5-pro"
+      },
+      "rate_limit_rpm": 15,
+      "rate_limit_rpd": 1500
+    },
+    {
+      "name": "mistral",
+      "api_url": "https://api.mistral.ai/v1",
+      "models": {
+        "fast": "mistral-small-latest",
+        "balanced": "mistral-medium-latest",
+        "strong": "mistral-large-latest"
+      },
+      "rate_limit_rpm": 30,
+      "rate_limit_rpd": 7000,
+      "rate_limit_tpm": 1000000,
+      "model_limits": {
+        "mistral-small-latest": 32768,
+        "mistral-medium-latest": 32768,
+        "mistral-large-latest": 131072,
+        "mistral-nemo-latest": 128000,
+        "open-mistral-nemo": 128000,
+        "codestral-latest": 32768,
+        "devstral-small-latest": 32768
+      }
+    }
+  ],
+  "default_tier": "balanced",
+  "default_provider_priority": ["groq", "siliconflow", "openrouter", "google", "mistral", "ollama"],
+  "api_keys": {
+    "_comment": "Set these as environment variables, NOT here",
+    "GROQ_API_KEY": "env:GROQ_API_KEY",
+    "SILICONFLOW_API_KEY": "env:SILICONFLOW_API_KEY",
+    "OPENROUTER_API_KEY": "env:OPENROUTER_API_KEY",
+    "GOOGLE_API_KEY": "env:GOOGLE_API_KEY",
+    "MISTRAL_API_KEY": "env:MISTRAL_API_KEY"
+  }
+}

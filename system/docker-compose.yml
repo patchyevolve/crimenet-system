@@ -1,0 +1,135 @@
+# CrimeNet — full stack.
+#
+#   docker compose up -d --build
+#
+# then open http://localhost:8080
+#
+# `postgres`, `neo4j` and `minio` are the backing stores; `api` is the FastAPI
+# service (which also shells out to `run.py` for pipeline runs); `frontend` is
+# the built React bundle behind nginx. The API source is bind-mounted from this
+# directory so an edit here is live without a rebuild.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: criminal_network_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: criminal
+      POSTGRES_PASSWORD: criminal_secret
+      POSTGRES_DB: criminal_network_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U criminal -d criminal_network_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: criminal_network_graph
+    restart: unless-stopped
+    ports:
+      - "7474:7474"   # Browser
+      - "7687:7687"   # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/criminal_secret
+      NEO4J_PLUGINS: '["graph-data-science"]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "neo4j status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: criminal_network_storage
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    environment:
+      MINIO_ROOT_USER: criminal
+      MINIO_ROOT_PASSWORD: criminal_secret
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./docker
+    container_name: criminal_network_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    # Overrides the localhost URLs in ./run.py's .env — inside a container the
+    # backing stores are reached by service name, not loopback. run.py only
+    # applies a .env line when the variable is not already in the environment,
+    # so these win.
+    environment:
+      CRIMENET_API_PORT: "8000"
+      CRIMENET_STATE_DIR: /app/.state
+      # Demo sign-in accounts (admin@crimenet.local … auditor@crimenet.local,
+      # shared password Cr1menet!Demo) are seeded at startup when this is "1".
+      # Off everywhere else — set CRIMENET_DEMO_PASSWORD to override it.
+      CRIMENET_SEED_DEMO_USERS: "1"
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: postgresql://criminal:criminal_secret@postgres:5432/criminal_network_db?schema=public
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: criminal_secret
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: criminal
+      S3_SECRET_KEY: criminal_secret
+      S3_BUCKET_NAME: criminal-evidence
+      S3_REGION: us-east-1
+    volumes:
+      - ./:/app
+    working_dir: /app
+    # Run as the host user so `.state/`, `logs/`, `uploads/` and the per-case
+    # `output/` trees that the pipeline writes through this mount stay owned by
+    # you on the host — otherwise a later local pytest run cannot write them.
+    user: "1000:1000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8000/api/meta', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ../../frontend and backend
+      dockerfile: Dockerfile
+    container_name: criminal_network_frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  minio_data:

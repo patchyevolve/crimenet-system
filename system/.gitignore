@@ -1,0 +1,291 @@
+# ============================================================
+# ENVIRONMENT / SECRETS
+# ============================================================
+
+# All environment files
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
+
+# Local secret/config variants
+*.secret
+*.secrets
+*.credentials
+*.credential
+*.private
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Secret/config files
+secrets/
+secret/
+.secrets/
+credentials/
+.local/
+.local.*
+
+# ============================================================
+# API KEYS / TOKENS / AUTH
+# ============================================================
+
+# Common credential files
+credentials.json
+client_secret.json
+service-account.json
+service-account-key.json
+google-credentials.json
+firebase-adminsdk-*.json
+
+# OAuth/token files
+token.json
+tokens.json
+oauth.json
+oauth_tokens.json
+access_token.json
+refresh_token.json
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_ecdsa
+id_ecdsa.pub
+known_hosts
+
+# ============================================================
+# DATABASES / LOCAL DATA
+# ============================================================
+
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+data/
+local-data/
+runtime-data/
+storage/
+
+# Database dumps
+*.sql
+*.dump
+# ...but the pipeline schema is source, not a dump.
+!init.sql
+*.bak
+*.backup
+
+# ============================================================
+# LOGS / RUNTIME
+# ============================================================
+
+*.log
+logs/
+*.pid
+*.pid.lock
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ============================================================
+# NODE / BUN / JAVASCRIPT
+# ============================================================
+
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+
+# Bun
+.bun/
+bun-debug.log
+bun.lockb
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.cache/
+.parcel-cache/
+.turbo/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# ============================================================
+# PYTHON
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+ENV/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+
+*.egg-info/
+.eggs/
+*.whl
+
+# ============================================================
+# RUST
+# ============================================================
+
+target/
+Cargo.lock
+
+# ============================================================
+# DOCKER
+# ============================================================
+
+# Local Docker overrides
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Docker environment files
+docker/.env
+docker/*/.env
+
+# ============================================================
+# GENERATED / GENERATED CODE
+# ============================================================
+
+generated/
+generated-code/
+_codegen/
+*.generated.*
+*.gen.*
+
+# ============================================================
+# IDE / EDITORS
+# ============================================================
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+
+# ============================================================
+# OS FILES
+# ============================================================
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# ============================================================
+# TEST / DEBUG OUTPUT
+# ============================================================
+
+test-results/
+test-results/
+playwright-report/
+blob-report/
+.nyc_output/
+
+*.snap.new
+*.actual
+*.received
+
+# ============================================================
+# AI / AGENT LOCAL STATE
+# ============================================================
+
+.opencode/
+.opencode.local/
+.codex/
+.claude/
+.cursor/
+.windsurf/
+
+# Agent/runtime logs
+.agent/
+.agent-state/
+.ai/
+.ai-state/
+
+# ============================================================
+# LOCAL DEVELOPMENT
+# ============================================================
+
+*.local
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+
+# Local certificates
+certs/
+certificates/
+
+# ============================================================
+# BACKUPS
+# ============================================================
+
+*.orig
+*.rej
+*.bak
+*.backup
+*.old
+
+# ============================================================
+# PIPELINE RUNTIME ARTIFACTS
+# ============================================================
+
+# Every pipeline run writes its evidence JSON here (per case).
+output/
+output_geo/
+output_geo2/
+
+# API runtime state: seeded user accounts with password hashes, case
+# registry, per-case outputs, job records, session secret.
+.state/
+
+# Scratch verification notes from local runs.
+results.txt
+
+# Face-recognition model weights (insightface buffalo_l, ~333 MB).
+.insightface/
+
+# Loader staging areas.
+staging/
+archive/
+uploads/

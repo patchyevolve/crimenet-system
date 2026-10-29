@@ -1,0 +1,30 @@
+{
+  "pipeline": {
+    "input_dir": "../demo_data",
+    "output_dir": "output",
+    "use_llm": true,
+    "llm_provider": "groq",
+    "llm_model": "openai/gpt-oss-20b",
+    "llm_fallbacks": [],
+    "ollama_url": "http://localhost:11434",
+    "llm_extraction_threshold": 50,
+    "max_text_length": 5000
+  },
+  "extraction": {
+    "confidence_thresholds": {
+      "high": 0.8,
+      "medium": 0.5,
+      "low": 0.3
+    },
+    "enable_fuzzy_matching": true,
+    "fuzzy_match_threshold": 0.85,
+    "phone_number_pattern": "\\b\\d{10}\\b",
+    "indian_name_patterns": true
+  },
+  "output": {
+    "format": "json",
+    "include_raw_text": false,
+    "include_confidence_decomposition": true,
+    "include_source_metadata": true
+  }
+}
