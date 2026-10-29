@@ -1,0 +1,1393 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "postgresqlExtensions"]
+}
+
+generator prisma {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuid_ossp(map: "uuid-ossp", schema: "public"), vector]
+}
+
+model PipelineRun {
+  id                  String                      @id @default(uuid())
+  caseId              String?
+  jurisdictionNodeId  String?
+  pipelineVersion     String                      @default("v1.0")
+  modelVersions       Json?
+  policyVersion       String                      @default("policy_v1.0")
+  triggerType         String
+  status              PipelineRunStatus           @default(RUNNING)
+  startTime           DateTime                    @default(now())
+  endTime             DateTime?
+  parentRunId         String?
+  inputFiles          Json
+  summary             Json?
+  adversarialChecks   AdversarialCheck[]
+  adversarialScores   AdversarialEdgeScore[]
+  contradictions      Contradiction[]
+  coverageIntervals   CoverageInterval[]
+  dataQualityScores   DataQualityScore[]
+  dependencyGroups    DependencyGroup[]
+  candidates          EntityResolutionCandidate[]
+  eventClusters       EventCluster[]
+  ExtractedEntity     ExtractedEntity[]
+  ExtractedRelation   ExtractedRelation[]
+  extractionLogs      ExtractionLog[]
+  graphEdges          GraphEdge[]
+  graphNodes          GraphNode[]
+  ingestedFiles       IngestedFile[]
+  missingEdges        MissingEdge[]
+  case                Case?                       @relation(fields: [caseId], references: [id])
+  rejectedEdges       RejectedEdge[]
+  resolutionHistories ResolutionHistory[]
+  resolvedEntities    ResolvedEntity[]
+  spatialInfos        SpatialInfo[]
+  temporalInfos       TemporalInfo[]
+}
+
+model Case {
+  id                  String                   @id @default(uuid())
+  jurisdictionNodeId  String
+  locationId          String?
+  caseStatus          CaseStatus               @default(ACTIVE)
+  description         String?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime?
+  analysisRunCases    AnalysisRunCase[]
+  jurisdictionNode    JurisdictionNode         @relation(fields: [jurisdictionNodeId], references: [id])
+  location            Location?                @relation(fields: [locationId], references: [id])
+  caseAccesses        CaseAccess[]
+  entities            CaseEntityLink[]
+  jurisdictionLinks   CaseJurisdictionLink[]
+  narrativeEmbeddings CaseNarrativeEmbedding[]
+  caseRelationshipsA  CaseRelationship[]       @relation("CaseA")
+  caseRelationshipsB  CaseRelationship[]       @relation("CaseB")
+  crossCaseAlertCases CrossCaseAlertCase[]
+  evidence            Evidence[]
+  fir                 FIR?
+  globalEntityLinks   GlobalEntityLink[]
+  pipelineRuns        PipelineRun[]
+  suspects            Suspect[]
+  workspaceCases      WorkspaceCase[]
+}
+
+model FIR {
+  id                  String                 @id @default(uuid())
+  caseId              String                 @unique
+  firNumber           String
+  jurisdictionNodeId  String
+  description         String
+  filedById           String
+  firDocumentR2Key    String?
+  filedAt             DateTime?
+  investigationStatus FIRInvestigationStatus @default(REGISTERED)
+  legalDisposition    FIRLegalDisposition    @default(NONE)
+  recordStatus        FIRRecordStatus        @default(ACTIVE)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime?
+  case                Case                   @relation(fields: [caseId], references: [id])
+  filedBy             User                   @relation(fields: [filedById], references: [id])
+  jurisdictionNode    JurisdictionNode       @relation(fields: [jurisdictionNodeId], references: [id])
+  lifecycleHistory    FIRLifecycleHistory[]
+
+  @@unique([firNumber, jurisdictionNodeId])
+}
+
+model User {
+  id                              String                    @id @default(uuid())
+  email                           String                    @unique
+  name                            String
+  passwordHash                    String
+  role                            UserRole
+  status                          UserStatus                @default(FORCE_PASSWORD_CHANGE)
+  jurisdictionNodeId              String?
+  createdAt                       DateTime                  @default(now())
+  updatedAt                       DateTime?
+  analysisRunsCreated             AnalysisRun[]
+  auditLogs                       AuditLog[]
+  caseAccessesGranted             CaseAccess[]              @relation("CaseAccessGranter")
+  caseAccessesOwned               CaseAccess[]              @relation("CaseAccessUser")
+  caseEntityLinks                 CaseEntityLink[]
+  CaseRelationship                CaseRelationship[]
+  caseRelationshipChanges         CaseRelationshipHistory[] @relation("CaseRelationshipChanger")
+  contradictionsResolved          Contradiction[]           @relation("ContradictionResolver")
+  crossCaseAlertsReviewed         CrossCaseAlert[]
+  evidenceLogged                  Evidence[]
+  evidenceUploaded                EvidenceFile[]
+  firsFiled                       FIR[]
+  firLifecycleChanges             FIRLifecycleHistory[]
+  facesConfirmed                  FaceEmbedding[]
+  findingsCreated                 Finding[]
+  workspacesCreated               InvestigationWorkspace[]
+  resolutionHistories             ResolutionHistory[]       @relation("ResolutionHistoryChanger")
+  suspectsConvicted               Suspect[]
+  unresolvedJurisdictionsResolved UnresolvedJurisdiction[]
+  jurisdictionNode                JurisdictionNode?         @relation(fields: [jurisdictionNodeId], references: [id])
+  workspacesCaseAdded             WorkspaceCase[]           @relation("WorkspaceCaseAdder")
+  workspaceMemberships            WorkspaceMember[]
+}
+
+model Location {
+  id                       String                  @id @default(uuid())
+  name                     String?
+  lat                      Float
+  lng                      Float
+  address                  String?
+  jurisdictionNodeId       String?
+  geographicJurisdictionId String?
+  cases                    Case[]
+  geographicJurisdiction   GeographicJurisdiction? @relation(fields: [geographicJurisdictionId], references: [id])
+  jurisdictionNode         JurisdictionNode?       @relation(fields: [jurisdictionNodeId], references: [id])
+}
+
+model IngestedFile {
+  id                 String              @id @default(uuid())
+  runId              String
+  caseId             String?
+  fileName           String
+  filePath           String
+  fileExt            String
+  fileHash           String
+  fileSizeBytes      Int
+  detectedType       String
+  sourceType         SourceType
+  documentType       DocumentType?
+  ingestionTime      DateTime            @default(now())
+  modifiedTime       DateTime?
+  recordCount        Int?
+  rawSummary         String?
+  adversarialChecks  AdversarialCheck[]
+  dataQualityScore   DataQualityScore?
+  evidenceIntegrity  EvidenceIntegrity?
+  extractedEntities  ExtractedEntity[]
+  extractedRelations ExtractedRelation[]
+  extractionLogs     ExtractionLog[]
+  run                PipelineRun         @relation(fields: [runId], references: [id])
+}
+
+model DataQualityScore {
+  id                    String       @id @default(uuid())
+  ingestedFileId        String       @unique
+  qualityScore          Float
+  completenessScore     Float
+  structuralConsistency Float
+  contentRichness       Float
+  issues                Json?
+  runId                 String
+  ingestedFile          IngestedFile @relation(fields: [ingestedFileId], references: [id])
+  run                   PipelineRun  @relation(fields: [runId], references: [id])
+}
+
+model AdversarialCheck {
+  id                String               @id @default(uuid())
+  ingestedFileId    String
+  isSuspicious      Boolean              @default(false)
+  behavioralAnomaly Boolean              @default(false)
+  temporalAnomaly   Boolean              @default(false)
+  contentAnomaly    Boolean              @default(false)
+  duplicateSuspect  Boolean              @default(false)
+  riskLevel         AdversarialRiskLevel @default(LOW)
+  score             Float
+  reasons           Json?
+  runId             String
+  ingestedFile      IngestedFile         @relation(fields: [ingestedFileId], references: [id])
+  run               PipelineRun          @relation(fields: [runId], references: [id])
+}
+
+model EvidenceIntegrity {
+  id              String       @id @default(uuid())
+  ingestedFileId  String       @unique
+  fileHash        String
+  hashVerified    Boolean
+  isAdversarial   Boolean      @default(false)
+  chainOfCustody  Json?
+  transformations Json?
+  createdAt       DateTime     @default(now())
+  ingestedFile    IngestedFile @relation(fields: [ingestedFileId], references: [id])
+}
+
+model DependencyGroup {
+  id             String      @id @default(uuid())
+  runId          String
+  groupName      String
+  fileCount      Int         @default(0)
+  totalEntities  Int         @default(0)
+  totalRelations Int         @default(0)
+  createdAt      DateTime    @default(now())
+  run            PipelineRun @relation(fields: [runId], references: [id])
+}
+
+model ExtractedEntity {
+  id                String                      @id @default(uuid())
+  runId             String
+  caseId            String?
+  ingestedFileId    String
+  entityType        EntityType
+  mentionText       String
+  confidenceScore   Float
+  startOffset       Int?
+  endOffset         Int?
+  epistemicCategory EpistemicCategory           @default(INFERENCE)
+  sourceReliability Int                         @default(3)
+  evidenceBasis     Int                         @default(1)
+  derivationDepth   Int                         @default(0)
+  createdAt         DateTime                    @default(now())
+  candidates        EntityResolutionCandidate[]
+  ingestedFile      IngestedFile                @relation(fields: [ingestedFileId], references: [id])
+  run               PipelineRun                 @relation(fields: [runId], references: [id])
+  sourceRelations   ExtractedRelation[]         @relation("SourceEntity")
+  targetRelations   ExtractedRelation[]         @relation("TargetEntity")
+}
+
+model ExtractedRelation {
+  id                String            @id @default(uuid())
+  runId             String
+  caseId            String?
+  ingestedFileId    String
+  sourceEntityId    String
+  targetEntityId    String
+  relationType      RelationType
+  confidenceScore   Float
+  epistemicCategory EpistemicCategory @default(INFERENCE)
+  sourceReliability Int               @default(3)
+  evidenceBasis     Int               @default(1)
+  derivationDepth   Int               @default(0)
+  createdAt         DateTime          @default(now())
+  ingestedFile      IngestedFile      @relation(fields: [ingestedFileId], references: [id])
+  run               PipelineRun       @relation(fields: [runId], references: [id])
+  sourceEntity      ExtractedEntity   @relation("SourceEntity", fields: [sourceEntityId], references: [id])
+  targetEntity      ExtractedEntity   @relation("TargetEntity", fields: [targetEntityId], references: [id])
+}
+
+model ExtractionLog {
+  id             String       @id @default(uuid())
+  runId          String
+  ingestedFileId String
+  stage          String
+  message        String?
+  createdAt      DateTime     @default(now())
+  ingestedFile   IngestedFile @relation(fields: [ingestedFileId], references: [id])
+  run            PipelineRun  @relation(fields: [runId], references: [id])
+}
+
+model ResolvedEntity {
+  id                  String                      @id @default(uuid())
+  runId               String
+  caseId              String?
+  entityType          EntityType
+  canonicalName       String
+  mergeConfidence     Float
+  mergeType           MergeType
+  epistemicCategory   EpistemicCategory           @default(INFERENCE)
+  sourceReliability   Int                         @default(3)
+  evidenceBasis       Int                         @default(1)
+  derivationDepth     Int                         @default(0)
+  phoneNumbers        Json?
+  plateNumbers        Json?
+  bankAccounts        Json?
+  locationNames       Json?
+  createdAt           DateTime                    @default(now())
+  candidates          EntityResolutionCandidate[]
+  resolutionHistories ResolutionHistory[]
+  run                 PipelineRun                 @relation(fields: [runId], references: [id])
+}
+
+model EntityResolutionCandidate {
+  id                String          @id @default(uuid())
+  runId             String
+  sourceEntityId    String
+  candidateEntityId String
+  similarityScore   Float
+  matchType         String
+  status            CandidateStatus @default(PENDING)
+  createdAt         DateTime        @default(now())
+  candidateEntity   ResolvedEntity  @relation(fields: [candidateEntityId], references: [id])
+  run               PipelineRun     @relation(fields: [runId], references: [id])
+  sourceEntity      ExtractedEntity @relation(fields: [sourceEntityId], references: [id])
+}
+
+model Contradiction {
+  id                  String                @id @default(uuid())
+  runId               String
+  contradictionType   ContradictionType
+  severity            ContradictionSeverity
+  description         String
+  entities            Json
+  isResolved          Boolean               @default(false)
+  resolvedById        String?
+  resolvedAt          DateTime?
+  createdAt           DateTime              @default(now())
+  resolver            User?                 @relation("ContradictionResolver", fields: [resolvedById], references: [id])
+  run                 PipelineRun           @relation(fields: [runId], references: [id])
+  resolutionHistories ResolutionHistory[]
+}
+
+model ResolutionHistory {
+  id              String         @id @default(uuid())
+  runId           String
+  entityId        String
+  action          String
+  oldConfidence   Float?
+  newConfidence   Float?
+  changedById     String
+  reason          String?
+  contradictionId String?
+  createdAt       DateTime       @default(now())
+  changedBy       User           @relation("ResolutionHistoryChanger", fields: [changedById], references: [id])
+  contradiction   Contradiction? @relation(fields: [contradictionId], references: [id])
+  entity          ResolvedEntity @relation(fields: [entityId], references: [id])
+  run             PipelineRun    @relation(fields: [runId], references: [id])
+}
+
+model TemporalInfo {
+  id              String      @id @default(uuid())
+  runId           String
+  entityId        String
+  timeExpression  String
+  normalizedStart DateTime?
+  normalizedEnd   DateTime?
+  granularity     String?
+  confidence      Float
+  createdAt       DateTime    @default(now())
+  run             PipelineRun @relation(fields: [runId], references: [id])
+}
+
+model SpatialInfo {
+  id           String      @id @default(uuid())
+  runId        String
+  entityId     String
+  locationName String?
+  lat          Float?
+  lng          Float?
+  radius       Float?
+  confidence   Float
+  createdAt    DateTime    @default(now())
+  run          PipelineRun @relation(fields: [runId], references: [id])
+}
+
+model CoverageInterval {
+  id              String      @id @default(uuid())
+  runId           String
+  entityId        String
+  startYear       Int
+  endYear         Int?
+  coveragePercent Float
+  createdAt       DateTime    @default(now())
+  run             PipelineRun @relation(fields: [runId], references: [id])
+}
+
+model GraphNode {
+  id               String                    @id @default(uuid())
+  runId            String
+  caseId           String?
+  nodeType         EntityType
+  canonicalName    String
+  confidence       Float
+  resolutionStatus GraphNodeResolutionStatus @default(UNRESOLVED)
+  provenanceChain  Json?
+  createdAt        DateTime                  @default(now())
+  outgoingEdges    GraphEdge[]               @relation("SourceNode")
+  incomingEdges    GraphEdge[]               @relation("TargetNode")
+  run              PipelineRun               @relation(fields: [runId], references: [id])
+  missingOutgoing  MissingEdge[]             @relation("MissingSource")
+  missingIncoming  MissingEdge[]             @relation("MissingTarget")
+  rejectedOutgoing RejectedEdge[]            @relation("RejectedSource")
+  rejectedIncoming RejectedEdge[]            @relation("RejectedTarget")
+}
+
+model GraphEdge {
+  id                 String                 @id @default(uuid())
+  runId              String
+  caseId             String?
+  sourceId           String
+  targetId           String
+  relationshipType   RelationType
+  semanticEdgeType   SemanticEdgeType
+  edgeType           String
+  confidenceScore    Float
+  adversarialScore   Float?
+  supportingEvidence Json?
+  createdAt          DateTime               @default(now())
+  adversarialScores  AdversarialEdgeScore[]
+  run                PipelineRun            @relation(fields: [runId], references: [id])
+  sourceNode         GraphNode              @relation("SourceNode", fields: [sourceId], references: [id])
+  targetNode         GraphNode              @relation("TargetNode", fields: [targetId], references: [id])
+}
+
+model MissingEdge {
+  id           String      @id @default(uuid())
+  runId        String
+  sourceId     String
+  targetId     String
+  expectedType String
+  confidence   Float
+  createdAt    DateTime    @default(now())
+  run          PipelineRun @relation(fields: [runId], references: [id])
+  sourceNode   GraphNode   @relation("MissingSource", fields: [sourceId], references: [id])
+  targetNode   GraphNode   @relation("MissingTarget", fields: [targetId], references: [id])
+}
+
+model RejectedEdge {
+  id         String      @id @default(uuid())
+  runId      String
+  sourceId   String
+  targetId   String
+  reason     String
+  confidence Float
+  createdAt  DateTime    @default(now())
+  run        PipelineRun @relation(fields: [runId], references: [id])
+  sourceNode GraphNode   @relation("RejectedSource", fields: [sourceId], references: [id])
+  targetNode GraphNode   @relation("RejectedTarget", fields: [targetId], references: [id])
+}
+
+model AdversarialEdgeScore {
+  id        String               @id @default(uuid())
+  runId     String
+  edgeId    String
+  riskLevel AdversarialRiskLevel
+  score     Float
+  factors   Json?
+  createdAt DateTime             @default(now())
+  edge      GraphEdge            @relation(fields: [edgeId], references: [id])
+  run       PipelineRun          @relation(fields: [runId], references: [id])
+}
+
+model EventCluster {
+  id            String      @id @default(uuid())
+  runId         String
+  clusterName   String
+  eventCount    Int
+  avgConfidence Float
+  timeRange     Json?
+  createdAt     DateTime    @default(now())
+  run           PipelineRun @relation(fields: [runId], references: [id])
+}
+
+model Person {
+  id               String           @id @default(uuid())
+  canonicalName    String
+  gender           Gender?
+  dob              DateTime?
+  nationalIdNumber String?
+  photoR2Key       String?
+  identitySource   String           @default("MANUAL")
+  nameConfidence   Float?
+  createdById      String?
+  createdAt        DateTime         @default(now())
+  bankAccounts     BankAccount[]
+  caseLinks        CaseEntityLink[]
+  faceEmbeddings   FaceEmbedding[]
+  aliases          PersonAlias[]
+  phones           Phone[]
+  suspects         Suspect[]
+  vehicles         Vehicle[]
+}
+
+model PersonAlias {
+  id       String  @id @default(uuid())
+  personId String
+  alias    String
+  source   String?
+  person   Person  @relation(fields: [personId], references: [id])
+
+  @@unique([personId, alias])
+}
+
+model Phone {
+  id         String    @id @default(uuid())
+  number     String    @unique
+  personId   String?
+  carrier    String?
+  verifiedAt DateTime?
+  person     Person?   @relation(fields: [personId], references: [id])
+}
+
+model Vehicle {
+  id          String  @id @default(uuid())
+  plateNumber String  @unique
+  personId    String?
+  type        String?
+  color       String?
+  person      Person? @relation(fields: [personId], references: [id])
+}
+
+model BankAccount {
+  id                     String  @id @default(uuid())
+  accountNumberEncrypted String
+  bankName               String
+  ifsc                   String?
+  personId               String?
+  person                 Person? @relation(fields: [personId], references: [id])
+}
+
+model CaseEntityLink {
+  id        String         @id @default(uuid())
+  caseId    String
+  personId  String
+  role      CaseEntityRole
+  addedById String
+  addedAt   DateTime       @default(now())
+  addedBy   User           @relation(fields: [addedById], references: [id])
+  case      Case           @relation(fields: [caseId], references: [id])
+  person    Person         @relation(fields: [personId], references: [id])
+
+  @@unique([caseId, personId])
+}
+
+model Evidence {
+  id          String         @id @default(uuid())
+  caseId      String
+  suspectId   String?
+  type        String
+  status      EvidenceStatus @default(LOGGED)
+  description String?
+  collectedAt DateTime       @default(now())
+  loggedById  String
+  case        Case           @relation(fields: [caseId], references: [id])
+  loggedBy    User           @relation(fields: [loggedById], references: [id])
+  suspect     Suspect?       @relation(fields: [suspectId], references: [id])
+  files       EvidenceFile[]
+}
+
+model EvidenceFile {
+  id               String           @id @default(uuid())
+  evidenceId       String
+  fileType         String
+  r2Key            String
+  mimeType         String?
+  originalFileName String?
+  sizeBytes        Int?
+  uploadedById     String
+  uploadedAt       DateTime         @default(now())
+  audioTranscript  AudioTranscript?
+  evidence         Evidence         @relation(fields: [evidenceId], references: [id])
+  uploadedBy       User             @relation(fields: [uploadedById], references: [id])
+  faceEmbeddings   FaceEmbedding[]
+  ocrResult        OcrResult?
+}
+
+model OcrResult {
+  id             String       @id @default(uuid())
+  evidenceFileId String       @unique
+  extractedText  String?
+  confidence     Float?
+  language       String?
+  processedAt    DateTime     @default(now())
+  evidenceFile   EvidenceFile @relation(fields: [evidenceFileId], references: [id])
+}
+
+model AudioTranscript {
+  id              String       @id @default(uuid())
+  evidenceFileId  String       @unique
+  transcriptText  String?
+  language        String?
+  durationSeconds Int?
+  confidence      Float?
+  processedAt     DateTime     @default(now())
+  evidenceFile    EvidenceFile @relation(fields: [evidenceFileId], references: [id])
+}
+
+model FaceEmbedding {
+  id                 String                @id @default(uuid())
+  personId           String?
+  suspectId          String?
+  evidenceFileId     String?
+  sourceImageR2Key   String
+  sourceType         String?
+  embeddingVector    Unsupported("vector")
+  detectorConfidence Float
+  matchConfidence    Float?
+  status             FaceStatus            @default(PENDING)
+  confirmedById      String?
+  confirmedAt        DateTime?
+  createdAt          DateTime              @default(now())
+  confirmedBy        User?                 @relation(fields: [confirmedById], references: [id])
+  evidenceFile       EvidenceFile?         @relation(fields: [evidenceFileId], references: [id])
+  person             Person?               @relation(fields: [personId], references: [id])
+  suspect            Suspect?              @relation(fields: [suspectId], references: [id])
+
+  @@index([personId, status])
+  @@index([suspectId])
+  @@index([evidenceFileId])
+}
+
+model CrimeZoneScore {
+  id                 String           @id @default(uuid())
+  h3Index            String
+  riskScore          Float
+  band               String
+  offenseType        String?
+  jurisdictionNodeId String
+  computedAt         DateTime         @default(now())
+  jurisdictionNode   JurisdictionNode @relation(fields: [jurisdictionNodeId], references: [id])
+
+  @@index([h3Index])
+  @@index([jurisdictionNodeId, computedAt])
+}
+
+model CaseNarrativeEmbedding {
+  id              String                @id @default(uuid())
+  caseId          String
+  sourceText      String
+  embeddingVector Unsupported("vector")
+  createdAt       DateTime              @default(now())
+  case            Case                  @relation(fields: [caseId], references: [id])
+
+  @@index([caseId])
+}
+
+model Suspect {
+  id                   String          @id @default(uuid())
+  caseId               String
+  personId             String?
+  name                 String
+  gender               Gender?
+  dob                  DateTime?
+  nationalIdNumber     String?
+  status               SuspectStatus   @default(UNDER_INVESTIGATION)
+  arrestDate           DateTime?
+  contactInfo          String?
+  photoR2Key           String?
+  criminalRecordNumber String?         @unique
+  convictedById        String?
+  convictedAt          DateTime?
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime?
+  evidence             Evidence[]
+  faceEmbeddings       FaceEmbedding[]
+  case                 Case            @relation(fields: [caseId], references: [id])
+  convictedBy          User?           @relation(fields: [convictedById], references: [id])
+  person               Person?         @relation(fields: [personId], references: [id])
+
+  @@index([personId, caseId])
+  @@index([status])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String
+  action       String
+  resourceType String
+  resourceId   String
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([resourceType, resourceId])
+}
+
+model JurisdictionNode {
+  id                      String                   @id @default(uuid())
+  name                    String
+  nodeType                JurisdictionNodeType
+  parentId                String?
+  status                  JurisdictionNodeStatus   @default(ACTIVE)
+  code                    String?
+  validFrom               DateTime                 @default(now())
+  validTo                 DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime?
+  Case                    Case[]
+  caseJurisdictionLinks   CaseJurisdictionLink[]
+  CrimeZoneScore          CrimeZoneScore[]
+  FIR                     FIR[]
+  globalEntityLinks       GlobalEntityLink[]
+  InvestigationWorkspace  InvestigationWorkspace[]
+  history                 JurisdictionHistory[]
+  parent                  JurisdictionNode?        @relation("JurisdictionTree", fields: [parentId], references: [id])
+  children                JurisdictionNode[]       @relation("JurisdictionTree")
+  Location                Location[]
+  unresolvedJurisdictions UnresolvedJurisdiction[]
+  User                    User[]
+
+  @@index([nodeType])
+  @@index([parentId])
+  @@index([status])
+}
+
+model GeographicJurisdiction {
+  id               String     @id @default(uuid())
+  name             String
+  jurisdictionType String
+  parentId         String?
+  boundaryPolygon  Json?
+  centerLat        Float?
+  centerLng        Float?
+  validFrom        DateTime   @default(now())
+  validTo          DateTime?
+  createdAt        DateTime   @default(now())
+  locations        Location[]
+
+  @@index([jurisdictionType])
+}
+
+model UnresolvedJurisdiction {
+  id                          String                       @id @default(uuid())
+  rawText                     String
+  sourceFile                  String
+  sourceType                  String
+  confidence                  Float                        @default(0)
+  suggestedJurisdictionNodeId String?
+  resolvedById                String?
+  resolvedJurisdictionNodeId  String?
+  status                      UnresolvedJurisdictionStatus @default(UNRESOLVED)
+  createdAt                   DateTime                     @default(now())
+  resolvedAt                  DateTime?
+  userId                      String?
+  jurisdictionNode            JurisdictionNode?            @relation(fields: [suggestedJurisdictionNodeId], references: [id])
+  User                        User?                        @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([sourceType])
+}
+
+model JurisdictionHistory {
+  id                 String           @id @default(uuid())
+  jurisdictionNodeId String
+  eventType          String
+  eventDate          DateTime         @default(now())
+  previousState      Json?
+  newState           Json?
+  description        String?
+  recordedById       String?
+  createdAt          DateTime         @default(now())
+  jurisdictionNode   JurisdictionNode @relation(fields: [jurisdictionNodeId], references: [id])
+
+  @@index([jurisdictionNodeId])
+  @@index([eventType])
+}
+
+model CaseJurisdictionLink {
+  id                 String                   @id @default(uuid())
+  caseId             String
+  jurisdictionNodeId String
+  linkType           CaseJurisdictionLinkType
+  description        String?
+  linkedAt           DateTime                 @default(now())
+  linkedById         String?
+  validFrom          DateTime                 @default(now())
+  validTo            DateTime?
+  case               Case                     @relation(fields: [caseId], references: [id])
+  jurisdictionNode   JurisdictionNode         @relation(fields: [jurisdictionNodeId], references: [id])
+
+  @@unique([caseId, jurisdictionNodeId, linkType])
+  @@index([caseId])
+  @@index([jurisdictionNodeId])
+  @@index([linkType])
+}
+
+model GlobalEntity {
+  canonicalId        String             @id @default(uuid())
+  entityType         String
+  canonicalName      String
+  phones             Json?
+  accounts           Json?
+  addresses          Json?
+  firstSeen          DateTime           @default(now())
+  lastSeen           DateTime           @default(now())
+  totalCases         Int                @default(0)
+  totalJurisdictions Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now())
+  crossCaseAlerts    CrossCaseAlert[]
+  links              GlobalEntityLink[]
+
+  @@index([entityType])
+  @@index([canonicalName])
+}
+
+model GlobalEntityLink {
+  id                 String           @id @default(uuid())
+  globalEntityId     String
+  caseId             String
+  localEntityId      String
+  jurisdictionNodeId String
+  confidence         Float            @default(0)
+  matchType          String
+  createdAt          DateTime         @default(now())
+  Case               Case             @relation(fields: [caseId], references: [id])
+  globalEntity       GlobalEntity     @relation(fields: [globalEntityId], references: [canonicalId])
+  jurisdictionNode   JurisdictionNode @relation(fields: [jurisdictionNodeId], references: [id])
+
+  @@unique([globalEntityId, caseId, localEntityId])
+  @@index([globalEntityId])
+  @@index([caseId])
+  @@index([jurisdictionNodeId])
+}
+
+model CrossCaseAlert {
+  id             String                 @id @default(uuid())
+  globalEntityId String
+  severity       CrossCaseAlertSeverity @default(MEDIUM)
+  recommendation String?
+  createdAt      DateTime               @default(now())
+  status         String                 @default("ACTIVE")
+  reviewedById   String?
+  reviewedAt     DateTime?
+  userId         String?
+  globalEntity   GlobalEntity           @relation(fields: [globalEntityId], references: [canonicalId])
+  User           User?                  @relation(fields: [userId], references: [id])
+  cases          CrossCaseAlertCase[]
+
+  @@index([globalEntityId])
+  @@index([severity])
+  @@index([status])
+}
+
+model CrossCaseAlertCase {
+  id                 String         @id @default(uuid())
+  alertId            String
+  caseId             String
+  jurisdictionNodeId String?
+  alert              CrossCaseAlert @relation(fields: [alertId], references: [id])
+  Case               Case           @relation(fields: [caseId], references: [id])
+
+  @@unique([alertId, caseId])
+  @@index([alertId])
+  @@index([caseId])
+}
+
+model CaseRelationship {
+  id                 String                     @id @default(uuid())
+  caseAId            String
+  caseBId            String
+  initialObservation CaseRelationshipAssessment
+  currentAssessment  CaseRelationshipAssessment
+  confidence         Float                      @default(0)
+  evidenceSummary    String?
+  detectedBy         String                     @default("SYSTEM")
+  status             CaseRelationshipStatus     @default(SUGGESTED)
+  confirmedById      String?
+  confirmedAt        DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime?
+  caseA              Case                       @relation("CaseA", fields: [caseAId], references: [id])
+  caseB              Case                       @relation("CaseB", fields: [caseBId], references: [id])
+  confirmedBy        User?                      @relation(fields: [confirmedById], references: [id])
+  history            CaseRelationshipHistory[]
+
+  @@unique([caseAId, caseBId])
+  @@index([caseAId])
+  @@index([caseBId])
+  @@index([currentAssessment])
+  @@index([status])
+}
+
+model CaseRelationshipHistory {
+  id                 String                      @id @default(uuid())
+  caseRelationshipId String
+  previousAssessment CaseRelationshipAssessment?
+  newAssessment      CaseRelationshipAssessment
+  previousStatus     CaseRelationshipStatus?
+  newStatus          CaseRelationshipStatus
+  previousConfidence Float?
+  newConfidence      Float
+  changedById        String?
+  changeReason       String?
+  createdAt          DateTime                    @default(now())
+  caseRelationship   CaseRelationship            @relation(fields: [caseRelationshipId], references: [id])
+  changedBy          User?                       @relation("CaseRelationshipChanger", fields: [changedById], references: [id])
+
+  @@index([caseRelationshipId])
+  @@index([createdAt])
+}
+
+model CaseAccess {
+  id          String          @id @default(uuid())
+  userId      String
+  caseId      String
+  accessLevel CaseAccessLevel @default(READ)
+  grantedById String
+  grantedAt   DateTime        @default(now())
+  expiresAt   DateTime?
+  case        Case            @relation(fields: [caseId], references: [id])
+  grantedBy   User            @relation("CaseAccessGranter", fields: [grantedById], references: [id])
+  user        User            @relation("CaseAccessUser", fields: [userId], references: [id])
+
+  @@unique([userId, caseId])
+  @@index([userId])
+  @@index([caseId])
+  @@index([accessLevel])
+}
+
+model InvestigationWorkspace {
+  id                 String            @id @default(uuid())
+  name               String
+  description        String?
+  createdById        String
+  jurisdictionNodeId String?
+  status             WorkspaceStatus   @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime?
+  AnalysisRun        AnalysisRun[]
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  jurisdictionNode   JurisdictionNode? @relation(fields: [jurisdictionNodeId], references: [id])
+  cases              WorkspaceCase[]
+  members            WorkspaceMember[]
+}
+
+model WorkspaceCase {
+  id          String                 @id @default(uuid())
+  workspaceId String
+  caseId      String
+  addedById   String
+  addedAt     DateTime               @default(now())
+  addedBy     User                   @relation("WorkspaceCaseAdder", fields: [addedById], references: [id])
+  case        Case                   @relation(fields: [caseId], references: [id])
+  workspace   InvestigationWorkspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, caseId])
+  @@index([workspaceId])
+  @@index([caseId])
+}
+
+model WorkspaceMember {
+  id          String                 @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole          @default(MEMBER)
+  joinedAt    DateTime               @default(now())
+  user        User                   @relation(fields: [userId], references: [id])
+  workspace   InvestigationWorkspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model AnalysisRun {
+  id              String                  @id @default(uuid())
+  workspaceId     String?
+  createdById     String
+  scopeType       AnalysisRunScopeType    @default(LOCAL)
+  description     String?
+  pipelineVersion String?
+  modelVersions   Json?
+  status          AnalysisRunStatus       @default(RUNNING)
+  startedAt       DateTime                @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime                @default(now())
+  createdBy       User                    @relation(fields: [createdById], references: [id])
+  workspace       InvestigationWorkspace? @relation(fields: [workspaceId], references: [id])
+  cases           AnalysisRunCase[]
+  result          AnalysisRunResult?
+  findings        Finding[]
+
+  @@index([workspaceId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model AnalysisRunCase {
+  id            String      @id @default(uuid())
+  analysisRunId String
+  caseId        String
+  analysisRun   AnalysisRun @relation(fields: [analysisRunId], references: [id])
+  case          Case        @relation(fields: [caseId], references: [id])
+
+  @@unique([analysisRunId, caseId])
+  @@index([analysisRunId])
+  @@index([caseId])
+}
+
+model AnalysisRunResult {
+  id                        String      @id @default(uuid())
+  analysisRunId             String      @unique
+  caseRelationshipsSnapshot Json?
+  globalEntityLinksSnapshot Json?
+  mergedGraphNodes          Json?
+  mergedGraphEdges          Json?
+  analytics                 Json?
+  mlOutputs                 Json?
+  createdAt                 DateTime    @default(now())
+  analysisRun               AnalysisRun @relation(fields: [analysisRunId], references: [id])
+}
+
+model Finding {
+  id                         String       @id @default(uuid())
+  analysisRunId              String
+  findingType                FindingType
+  title                      String
+  description                String?
+  confidence                 Float        @default(0)
+  supportingCaseIds          Json?
+  supportingEntityIds        Json?
+  supportingEdgeDescriptions Json?
+  supportingEvidenceIds      Json?
+  criticStatus               CriticStatus @default(PENDING)
+  criticNotes                String?
+  criticConfidence           Float?
+  createdById                String?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime?
+  analysisRun                AnalysisRun  @relation(fields: [analysisRunId], references: [id])
+  createdBy                  User?        @relation(fields: [createdById], references: [id])
+
+  @@index([analysisRunId])
+  @@index([findingType])
+  @@index([criticStatus])
+}
+
+model FIRLifecycleHistory {
+  id                 String                @id @default(uuid())
+  firId              String
+  dimension          FIRLifecycleDimension
+  previousValue      String?
+  newValue           String
+  changedById        String
+  changedAt          DateTime              @default(now())
+  reason             String?
+  authorityReference String?
+  createdAt          DateTime              @default(now())
+  changedBy          User                  @relation(fields: [changedById], references: [id])
+  fir                FIR                   @relation(fields: [firId], references: [id])
+
+  @@index([firId])
+  @@index([dimension])
+  @@index([changedAt])
+}
+
+enum EntityType {
+  PERSON
+  PHONE
+  VEHICLE
+  LOCATION
+  ACCOUNT
+  ORGANIZATION
+  EVENT
+  DEVICE
+  AMOUNT
+  DATE
+  DOCUMENT
+  EMAIL
+  VEHICLE_PLATE
+  IP_ADDRESS
+  CASE_NUMBER
+  UNKNOWN
+}
+
+enum RelationType {
+  CALLED
+  MESSED
+  ASSOCIATED_WITH
+  TRANSFERRED_TO
+  RECEIVED_FROM
+  OWNS_ACCOUNT
+  FAMILY_OF
+  FRIEND_OF
+  ASSOCIATE_OF
+  WORKS_WITH
+  LIVES_AT
+  WORKS_AT
+  VISITED
+  SUSPECT_OF
+  VICTIM_OF
+  WITNESS_OF
+  MEMBER_OF
+  EXTRACTED_FROM
+  DERIVED_FROM
+  POSSIBLE_IDENTITY
+  SAME_AS
+}
+
+enum SemanticEdgeType {
+  ENTREPRENEURIAL
+  ASSOCIATIONAL
+  QUASI_GOVERNMENTAL
+}
+
+enum EpistemicCategory {
+  OBSERVATION
+  INFERENCE
+  HYPOTHESIS
+  UNKNOWN_PROVENANCE
+}
+
+enum ProvenanceClass {
+  OBSERVATIONAL
+  DERIVED
+  INVESTIGATIVE
+  MODEL_GENERATED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  CORROBORATED
+  INDEPENDENTLY_VERIFIED
+  LEGALLY_ESTABLISHED
+}
+
+enum ContradictionType {
+  IDENTITY
+  TEMPORAL
+  LOCATION
+  ATTRIBUTION
+  SOURCE_CONTENT
+  EVENT_IDENTITY
+  DERIVATION
+  UNKNOWN
+}
+
+enum ContradictionSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CaseStatus {
+  ACTIVE
+  PENDING
+  SOLVED
+  CLOSED
+}
+
+enum UserRole {
+  INSPECTOR
+  ADMIN
+  AUDIT_LOGGER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  FORCE_PASSWORD_CHANGE
+}
+
+enum SuspectStatus {
+  UNDER_INVESTIGATION
+  ARRESTED
+  CHARGED
+  CONVICTED
+  ACQUITTED
+  RELEASED
+}
+
+enum EvidenceStatus {
+  LOGGED
+  COLLECTED
+  ANALYZED
+  ADMITTED
+  DISMISSED
+}
+
+enum CaseEntityRole {
+  SUSPECT
+  VICTIM
+  WITNESS
+  ASSOCIATE
+  VEHICLE_OWNER
+}
+
+enum MergeType {
+  AUTO
+  REVIEW
+  REJECT
+  SINGLE
+  LLM
+}
+
+enum CandidateStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum GraphNodeResolutionStatus {
+  RESOLVED
+  STANDALONE
+  UNRESOLVED
+}
+
+enum AdversarialRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FaceStatus {
+  PENDING
+  EXTRACTED
+  MATCHED
+  CONFIRMED
+  REJECTED
+  LOW_QUALITY
+}
+
+enum SourceType {
+  CDR
+  BANK
+  FIR
+  CCTV
+  SOCIAL
+  DEVICE
+  TEXT
+  DOCUMENT
+  IMAGE
+  AUDIO
+  VIDEO
+  UNKNOWN
+}
+
+enum DocumentType {
+  FIR
+  CDR
+  BANK_RECORD
+  CCTV_LOG
+  SOCIAL_MEDIA
+  DEVICE_FORENSIC
+  WITNESS_STATEMENT
+  SURVEILLANCE_REPORT
+  JOURNALIST_NOTE
+  INVESTIGATOR_SUMMARY
+  UNKNOWN
+}
+
+enum PipelineRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum JurisdictionNodeType {
+  NATION
+  STATE_UT
+  COMMISSIONERATE
+  RANGE
+  DISTRICT
+  CITY
+  ZONE
+  DIVISION
+  SUB_DIVISION
+  POLICE_STATION
+  OUT_POST
+}
+
+enum JurisdictionNodeStatus {
+  ACTIVE
+  INACTIVE
+  MERGED
+  SPLIT
+}
+
+enum CaseJurisdictionLinkType {
+  PRIMARY
+  ASSIST
+  TRANSFER
+  LINKED
+}
+
+enum UnresolvedJurisdictionStatus {
+  UNRESOLVED
+  RESOLVED
+  REJECTED
+}
+
+enum CrossCaseAlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseRelationshipAssessment {
+  SHARED_ENTITY
+  POSSIBLE_SAME_INCIDENT
+  POSSIBLE_RELATED_CASE
+  SAME_INCIDENT
+  RELATED_CASE
+}
+
+enum CaseRelationshipStatus {
+  SUGGESTED
+  CONFIRMED
+  REJECTED
+}
+
+enum CaseAccessLevel {
+  READ
+  WRITE
+  ADMIN
+}
+
+enum WorkspaceRole {
+  OWNER
+  MEMBER
+  VIEWER
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum AnalysisRunScopeType {
+  LOCAL
+  SCOPED
+}
+
+enum AnalysisRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum FindingType {
+  HYPOTHESIS
+  ANOMALY
+  PATTERN
+  CRITIC_VERDICT
+}
+
+enum CriticStatus {
+  PENDING
+  CORROBORATED
+  REFUTED
+  INCONCLUSIVE
+}
+
+enum FIRInvestigationStatus {
+  REGISTERED
+  UNDER_INVESTIGATION
+  CHARGE_SHEETED
+  FINAL_REPORT
+  CLOSED
+}
+
+enum FIRLegalDisposition {
+  NONE
+  CANCELLED
+  QUASHED
+  DISPOSED
+  CONVICTED
+  ACQUITTED
+}
+
+enum FIRRecordStatus {
+  ACTIVE
+  ARCHIVED
+  SEALED
+}
+
+enum FIRLifecycleDimension {
+  INVESTIGATION_STATUS
+  LEGAL_DISPOSITION
+  RECORD_STATUS
+}
